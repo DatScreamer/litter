@@ -773,6 +773,7 @@ private struct HomeNavigationView: View {
                     ConversationDestinationScreen(
                         threadKey: threadKey,
                         bottomInset: bottomInset,
+                        onBack: { popCurrentRoute() },
                         onResumeSessions: { showSessions(for: $0) },
                         onOpenConversation: { replaceTopConversation(with: $0) },
                         onInfo: { navigationPath.append(.conversationInfo(threadKey)) }
@@ -1898,13 +1899,13 @@ private struct HomeNavigationView: View {
 }
 
 private struct ConversationDestinationScreen: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(AppModel.self) private var appModel
     @Environment(AppState.self) private var appState
     @AppStorage("workDir") private var workDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.path ?? "/"
     @State private var screenModel = ConversationScreenModel()
     let threadKey: ThreadKey
     let bottomInset: CGFloat
+    let onBack: () -> Void
     let onResumeSessions: (String) -> Void
     let onOpenConversation: (ThreadKey) -> Void
     var onInfo: (() -> Void)?
@@ -2003,11 +2004,12 @@ private struct ConversationDestinationScreen: View {
         .overlay(alignment: .top) {
             GlassMorphContainer(spacing: 8) {
                 HStack(spacing: 8) {
-                    Button { dismiss() } label: {
+                    Button(action: onBack) {
                         Image(systemName: "chevron.left")
                             .font(LitterFont.styled(size: 17, weight: .semibold))
                             .foregroundColor(LitterTheme.textPrimary)
                             .frame(width: 40, height: 40)
+                            .contentShape(Circle())
                     }
                     .buttonStyle(.plain)
                     .modifier(GlassCircleModifier())
