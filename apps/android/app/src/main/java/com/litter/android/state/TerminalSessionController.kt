@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import uniffi.codex_mobile_client.decodeSshHostKeyChallenge
 import uniffi.codex_mobile_client.AppStore
 import uniffi.codex_mobile_client.TerminalBackendKind
 import uniffi.codex_mobile_client.TerminalOutputListener
@@ -191,27 +192,14 @@ class TerminalSessionController(
         backend: TerminalBackendKind,
     ): SshHostTrustChallenge? {
         val sshBackend = backend as? TerminalBackendKind.RemoteSsh ?: return null
-        val message = error.message.orEmpty()
-        val fingerprint = sshHostFingerprint(message) ?: return null
+        val challenge = decodeSshHostKeyChallenge(error.message.orEmpty()) ?: return null
         return SshHostTrustChallenge(
             host = sshBackend.host,
             port = sshBackend.port,
-            fingerprint = fingerprint,
+            fingerprint = challenge.fingerprint,
             backend = backend,
-            isChanged = message.contains("host-key-changed:"),
+            isChanged = challenge.isChanged,
         )
-    }
-
-    private fun sshHostFingerprint(message: String): String? {
-        val markers = listOf("unknown-host:", "host-key-changed:")
-        val marker = markers.firstOrNull { message.contains(it) } ?: return null
-        val start = message.indexOf(marker)
-        if (start < 0) return null
-        return message
-            .substring(start + marker.length)
-            .trim()
-            .trim('"', '\'', '(', ')', '[', ']')
-            .takeIf { it.isNotEmpty() }
     }
 
     fun resize(cols: Int, rows: Int, notifyBackend: Boolean = true) {

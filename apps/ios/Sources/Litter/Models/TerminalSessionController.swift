@@ -97,8 +97,7 @@ final class TerminalSessionController {
         return false
     }
 
-    func trustUnknownSshHostAndRetry() async {
-        guard let challenge = sshTrustChallenge else { return }
+    func trustUnknownSshHostAndRetry(_ challenge: SshHostTrustChallenge) async {
         SwiftSshTrustBackend.shared.write(
             host: challenge.host,
             port: challenge.port,
@@ -162,27 +161,16 @@ final class TerminalSessionController {
         ) = backend else {
             return nil
         }
-        let description = error.localizedDescription
-        let isChanged = description.contains("host-key-changed:")
-        guard let fingerprint = sshHostFingerprint(from: description) else {
+        guard let challenge = decodeSshHostKeyChallenge(message: error.localizedDescription) else {
             return nil
         }
         return SshHostTrustChallenge(
             host: host,
             port: port,
-            fingerprint: fingerprint,
+            fingerprint: challenge.fingerprint,
             backend: backend,
-            isChanged: isChanged
+            isChanged: challenge.isChanged
         )
-    }
-
-    private static func sshHostFingerprint(from description: String) -> String? {
-        guard let range = description.range(of: "unknown-host:") ?? description.range(of: "host-key-changed:") else { return nil }
-        let raw = description[range.upperBound...]
-        let fingerprint = raw
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .trimmingCharacters(in: CharacterSet(charactersIn: "\"'()[]"))
-        return fingerprint.isEmpty ? nil : fingerprint
     }
 
     func resize(cols: UInt16, rows: UInt16, notifyBackend: Bool = true) async {

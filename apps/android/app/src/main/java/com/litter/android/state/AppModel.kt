@@ -18,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import java.util.concurrent.atomic.AtomicLong
+import uniffi.codex_mobile_client.decodeSshHostKeyChallenge
 import uniffi.codex_mobile_client.AppClient
 import uniffi.codex_mobile_client.AppMinigameRequest
 import uniffi.codex_mobile_client.AppMinigameResult
@@ -171,12 +172,9 @@ class AppModel private constructor(context: android.content.Context) {
     }
 
     fun recordSshHostKeyChange(serverId: String, errorMessage: String?) {
-        val marker = "host-key-changed:"
-        val start = errorMessage?.indexOf(marker) ?: -1
-        if (start < 0) return
-        val fingerprint = errorMessage!!.substring(start + marker.length).trim()
-        if (fingerprint.isNotEmpty()) {
-            sshHostKeyChangeChallenge = SshHostKeyChangeChallenge(serverId, fingerprint)
+        val challenge = decodeSshHostKeyChallenge(errorMessage ?: return) ?: return
+        if (challenge.isChanged) {
+            sshHostKeyChangeChallenge = SshHostKeyChangeChallenge(serverId, challenge.fingerprint)
         }
     }
 

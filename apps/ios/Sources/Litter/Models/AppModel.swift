@@ -136,12 +136,11 @@ final class AppModel {
 
     func recordSshHostKeyChange(serverId: String, errorMessage: String?) {
         guard let errorMessage,
-              let marker = errorMessage.range(of: "host-key-changed:") else { return }
-        let fingerprint = errorMessage[marker.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !fingerprint.isEmpty else { return }
+              let challenge = decodeSshHostKeyChallenge(message: errorMessage),
+              challenge.isChanged else { return }
         sshHostKeyChangeChallenge = SshHostKeyChangeChallenge(
             serverId: serverId,
-            fingerprint: fingerprint
+            fingerprint: challenge.fingerprint
         )
     }
 

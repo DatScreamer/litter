@@ -54,7 +54,8 @@ struct TerminalScreen: View {
             set: { if !$0 { controller.dismissSshTrustChallenge() } }
         )) {
             Button("Replace Stored Identity", role: .destructive) {
-                Task { await controller.trustUnknownSshHostAndRetry() }
+                guard let challenge = controller.sshTrustChallenge else { return }
+                Task { await controller.trustUnknownSshHostAndRetry(challenge) }
             }
             Button("Cancel", role: .cancel) {
                 controller.dismissSshTrustChallenge()
@@ -320,7 +321,7 @@ struct TerminalScreen: View {
                                 .textSelection(.enabled)
                             if let challenge = controller.sshTrustChallenge {
                                 Button {
-                                    Task { await controller.trustUnknownSshHostAndRetry() }
+                                    Task { await controller.trustUnknownSshHostAndRetry(challenge) }
                                 } label: {
                                     Label("Trust \(challenge.fingerprint)", systemImage: "key.fill")
                                         .font(.custom("SFMono-Regular", size: 12))

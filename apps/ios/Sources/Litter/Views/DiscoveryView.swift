@@ -124,7 +124,7 @@ struct DiscoveryView: View {
                 let failedServerId = pendingAutoNavigateServerId
                 self.pendingAutoNavigateServerId = nil
                 self.pendingAutoNavigateServer = nil
-                if message.contains("host-key-changed:") {
+                if decodeSshHostKeyChallenge(message: message)?.isChanged == true {
                     appModel.recordSshHostKeyChange(
                         serverId: failedServerId ?? "",
                         errorMessage: message
