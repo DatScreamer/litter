@@ -88,6 +88,36 @@ final class HomeDashboardSupportTests: XCTestCase {
         XCTAssertEqual(model.recentSessions.map(\.key.threadId), ["pinned", "recent"])
     }
 
+    func testPinnedHomeListRevealsOlderCachedSessionsOnLoadMore() async {
+        let appModel = AppModel()
+        let pinnedKey = SavedThreadsStore.PinnedKey(
+            threadKey: ThreadKey(serverId: "codex", threadId: "pinned")
+        )
+        let model = HomeDashboardModel(
+            persistence: persistence(pinned: [pinnedKey]),
+            observedRefreshDelayNanoseconds: 0
+        )
+        model.bind(appModel: appModel)
+        model.activate()
+        let recent = (1...25).map {
+            makeThreadSnapshot(serverId: "codex", threadId: "recent-\($0)", updatedAt: TimeInterval($0))
+        }
+        appModel.applySnapshot(makeSnapshot(
+            servers: [makeServerSnapshot(id: "codex", name: "Codex")],
+            threads: [makeThreadSnapshot(serverId: "codex", threadId: "pinned", updatedAt: 30)] + recent,
+            activeThread: nil
+        ))
+        await waitUntil("Pinned list renders its initial recent window") {
+            model.recentSessions.count == 21
+        }
+        XCTAssertEqual(model.recentSessions.first?.key.threadId, "pinned")
+        model.loadMore()
+        await waitUntil("Scrolling reveals the remaining cached sessions") {
+            model.recentSessions.count == 26
+        }
+        XCTAssertEqual(Set(model.recentSessions.map(\.key.threadId)).count, 26)
+    }
+
     func testLocalStudioDoesNotShowFalseOpenAISignInWarning() {
         let studio = makeServerSnapshot(
             id: "studio",

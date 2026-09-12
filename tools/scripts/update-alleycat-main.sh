@@ -45,7 +45,7 @@ resolve_alleycat_main() {
 }
 
 alleycat_is_pinned() {
-  grep -q 'dnakov/alleycat\.git.*rev = ' "$1"
+  grep -Eq '^alleycat[^=]*=.*rev[[:space:]]*=' "$1"
 }
 
 update_shared() {

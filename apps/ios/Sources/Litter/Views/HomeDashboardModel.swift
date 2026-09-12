@@ -62,9 +62,8 @@ final class HomeDashboardModel {
     }
 
     private(set) var connectedServers: [HomeDashboardServer] = []
-    /// Home list source: pinned threads first (in pin order). Local Studio
-    /// also keeps recent sessions visible after a pin so newly synced Pi
-    /// sessions remain discoverable. Hidden threads are always excluded.
+    /// Home list source: pins first, followed by the current recent window
+    /// for every runtime. Hidden threads are always excluded.
     private(set) var recentSessions: [HomeDashboardRecentSession] = []
     /// Every session we know about across connected servers, newest first —
     /// used by the search view so the user can pick any thread.
@@ -76,7 +75,7 @@ final class HomeDashboardModel {
     /// servers. Drives the loading row at the bottom of the home list.
     private(set) var isLoadingMoreSessions = false
     /// How many unpinned recent sessions the home list should render. Starts
-    /// at the page size (10) and grows as the user scrolls to load more.
+    /// at the page size (20) and grows as the user scrolls to load more.
     private(set) var recentLimit = HomeDashboardModel.defaultRecentLimit
     private(set) var pinnedKeys: [SavedThreadsStore.PinnedKey] = []
     private(set) var hiddenKeys: [SavedThreadsStore.PinnedKey] = []
@@ -479,9 +478,9 @@ final class HomeDashboardModel {
         }
     }
 
-    /// Full reload of every session across the visible servers (pull-to-
-    /// refresh). Drains the whole cursor chain, resets the recent window, and
-    /// reconciles the home list. `completion` fires when the snapshot has
+    /// Reload recent sessions across the visible servers (pull-to-refresh).
+    /// Rust bounds hydration and retains cursors for older sessions. Resets
+    /// the recent window and reconciles the home list. `completion` fires when the snapshot has
     /// settled so the refresh control can end.
     func refreshAll(completion: (@MainActor () -> Void)? = nil) {
         guard let appModel, isActive else { return }

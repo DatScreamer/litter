@@ -746,6 +746,34 @@ fn alleycat_dial_retry_delays(use_all_controller_agents: bool) -> &'static [u64]
     }
 }
 
+fn thread_list_is_unfiltered(
+    requested_runtime_kinds: Option<&Vec<AgentRuntimeKind>>,
+    params: &upstream::ThreadListParams,
+) -> bool {
+    requested_runtime_kinds.is_none_or(Vec::is_empty)
+        && params.model_providers.as_ref().is_none_or(Vec::is_empty)
+        && params.source_kinds.as_ref().is_none_or(Vec::is_empty)
+        && params.cwd.is_none()
+        && params.archived != Some(true)
+        && params
+            .search_term
+            .as_deref()
+            .unwrap_or_default()
+            .trim()
+            .is_empty()
+        && !params.use_state_db_only
+}
+
+fn thread_list_tracks_home_cursor(unfiltered: bool, params: &upstream::ThreadListParams) -> bool {
+    unfiltered
+        && params.cursor.is_none()
+        && matches!(params.sort_key, Some(upstream::ThreadSortKey::UpdatedAt))
+        && matches!(
+            params.sort_direction,
+            None | Some(upstream::SortDirection::Desc)
+        )
+}
+
 impl MobileClient {
     /// Create a new `MobileClient`.
     pub fn new() -> Self {
@@ -2570,28 +2598,8 @@ impl MobileClient {
                 .unwrap_or_default()
                 .is_empty()
             && !params.use_state_db_only;
-        let unfiltered = requested_runtime_kinds.as_ref().is_none_or(Vec::is_empty)
-            && params.model_providers.as_ref().is_none_or(Vec::is_empty)
-            && params.source_kinds.as_ref().is_none_or(Vec::is_empty)
-            && params.cwd.is_none()
-            && params.archived != Some(true)
-            && params
-                .search_term
-                .as_deref()
-                .unwrap_or_default()
-                .trim()
-                .is_empty()
-            && !params.use_state_db_only;
-        let tracks_home_cursor = unfiltered
-            && params.cursor.is_none()
-            && matches!(
-                params.sort_key,
-                None | Some(upstream::ThreadSortKey::UpdatedAt)
-            )
-            && matches!(
-                params.sort_direction,
-                None | Some(upstream::SortDirection::Desc)
-            );
+        let unfiltered = thread_list_is_unfiltered(requested_runtime_kinds.as_ref(), &params);
+        let tracks_home_cursor = thread_list_tracks_home_cursor(unfiltered, &params);
         let session = self
             .get_session(server_id)
             .map_err(|error| error.to_string())?;
@@ -2663,8 +2671,8 @@ impl MobileClient {
                     let has_more = next_cursor.is_some();
                     // Persist cursor state so the snapshot's
                     // `session_list_has_more` reflects the server's actual
-                    // pagination.  On a full drain this is overwritten with
-                    // (None, false) after the loop.
+                    // pagination, including when bounded hydration stops
+                    // before the final page.
                     if tracks_home_cursor {
                         client.app_store.set_thread_page_state(
                             &server_id,
@@ -2692,8 +2700,8 @@ impl MobileClient {
             return Err("thread list failed for every runtime".to_string());
         }
         let all_completed = results.iter().all(|(_, _, ok, _)| *ok);
-        // Only prune on a full drain — a limited page load is additive and
-        // must not evict threads the server didn't return in this page.
+        // Only a complete, unfiltered scan can prove absent threads were
+        // deleted. Budget-limited and filtered loads remain additive.
         if all_completed
             && hydrate_recents
             && unfiltered
@@ -3438,7 +3446,12 @@ impl MobileClient {
             )
             .await
             .map_err(RpcError::Deserialization)?;
-        upsert_thread_snapshot_from_app_server_read_response(&self.app_store, server_id, response)
+        upsert_thread_snapshot_from_app_server_read_response(
+            &self.app_store,
+            server_id,
+            response,
+            false,
+        )
     }
 
     pub async fn thread_unsubscribe(
@@ -4008,7 +4021,7 @@ impl MobileClient {
                 {
                     Ok(response) => {
                         if let Err(error) = upsert_thread_snapshot_from_app_server_read_response(
-                            &app_store, &server_id, response,
+                            &app_store, &server_id, response, true,
                         ) {
                             warn!(
                                 "MobileClient: failed to reconcile thread after user input for server={} thread={}: {}",

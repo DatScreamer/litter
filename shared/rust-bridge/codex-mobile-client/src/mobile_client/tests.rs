@@ -9,6 +9,106 @@ mod mobile_client_tests {
     use std::sync::{Arc, Mutex as StdMutex};
 
     #[test]
+    fn metadata_read_preserves_page_and_active_turn_despite_embedded_history() {
+        let reducer = AppStoreReducer::new();
+        let key = ThreadKey {
+            server_id: "srv".to_string(),
+            thread_id: "thread-1".to_string(),
+        };
+        let mut existing = ThreadSnapshot::from_info("srv", make_thread_info("thread-1"));
+        existing.active_turn_id = Some("turn-1".to_string());
+        existing.info.status = ThreadSummaryStatus::Active;
+        existing.items = vec![crate::conversation::make_error_item(
+            "paged-item".into(),
+            "kept".into(),
+            None,
+        )]
+        .into();
+        existing.older_turns_cursor = Some("older".to_string());
+        existing.initial_turns_loaded = true;
+        reducer.upsert_thread_snapshot(existing);
+
+        let response: upstream::ThreadReadResponse = serde_json::from_value(serde_json::json!({
+            "thread": {
+                "id": "thread-1",
+                "sessionId": "session-1",
+                "preview": "hi",
+                "ephemeral": false,
+                "modelProvider": "openai",
+                "createdAt": 1,
+                "updatedAt": 2,
+                "status": { "type": "idle" },
+                "path": "/tmp/thread",
+                "cwd": "/tmp/thread",
+                "cliVersion": "1.0.0",
+                "source": "cli",
+                "agentNickname": null,
+                "agentRole": null,
+                "gitInfo": null,
+                "name": "thread",
+                "turns": [
+                    {
+                        "id": "turn-1",
+                        "items": [],
+                        "itemsView": "full",
+                        "status": "completed",
+                        "error": null,
+                        "startedAt": null,
+                        "completedAt": null,
+                        "durationMs": null
+                    }
+                ]
+            }
+        }))
+        .expect("thread/read response should deserialize");
+
+        upsert_thread_snapshot_from_app_server_read_response(&reducer, "srv", response, false)
+            .expect("upsert should succeed");
+
+        let snapshot = reducer
+            .snapshot()
+            .threads
+            .get(&key)
+            .cloned()
+            .expect("thread snapshot should exist");
+
+        assert_eq!(snapshot.active_turn_id.as_deref(), Some("turn-1"));
+        assert_eq!(snapshot.older_turns_cursor.as_deref(), Some("older"));
+        assert!(snapshot.initial_turns_loaded);
+        assert_eq!(snapshot.items.len(), 1);
+        assert_eq!(snapshot.items[0].id, "paged-item");
+        assert_eq!(snapshot.info.status, ThreadSummaryStatus::Active);
+    }
+
+    #[test]
+    fn scoped_thread_lists_cannot_prune_or_replace_home_cursors() {
+        let mut params: upstream::ThreadListParams =
+            serde_json::from_value(serde_json::json!({})).unwrap();
+        assert!(thread_list_is_unfiltered(None, &params));
+        assert!(!thread_list_tracks_home_cursor(true, &params));
+        params.sort_key = Some(upstream::ThreadSortKey::UpdatedAt);
+        assert!(thread_list_tracks_home_cursor(true, &params));
+        let runtimes = vec!["claude".to_string()];
+        assert!(!thread_list_is_unfiltered(Some(&runtimes), &params));
+        params.cwd = serde_json::from_value(serde_json::json!("/one-project")).unwrap();
+        assert!(!thread_list_is_unfiltered(None, &params));
+        params.cwd = None;
+        params.search_term = Some("search".into());
+        assert!(!thread_list_is_unfiltered(None, &params));
+        params.search_term = None;
+        params.archived = Some(true);
+        assert!(!thread_list_is_unfiltered(None, &params));
+        params.archived = None;
+        params.cursor = Some("search-cursor".into());
+        assert!(!thread_list_tracks_home_cursor(true, &params));
+        params.cursor = None;
+        params.sort_direction = Some(upstream::SortDirection::Asc);
+        assert!(!thread_list_tracks_home_cursor(true, &params));
+        params.sort_direction = None;
+        assert!(!thread_list_tracks_home_cursor(false, &params));
+    }
+
+    #[test]
     fn account_sync_warmup_only_runs_when_codex_runtime_is_present() {
         assert!(runtime_kinds_support_account_sync(&["codex".to_string()]));
         assert!(runtime_kinds_support_account_sync(&[
@@ -827,7 +927,7 @@ mod mobile_client_tests {
         }))
         .expect("thread/read response should deserialize");
 
-        upsert_thread_snapshot_from_app_server_read_response(&reducer, "srv", response)
+        upsert_thread_snapshot_from_app_server_read_response(&reducer, "srv", response, true)
             .expect("upsert should succeed");
 
         let key = ThreadKey {
@@ -891,7 +991,7 @@ mod mobile_client_tests {
         }))
         .expect("thread/read response should deserialize");
 
-        upsert_thread_snapshot_from_app_server_read_response(&reducer, "srv", response)
+        upsert_thread_snapshot_from_app_server_read_response(&reducer, "srv", response, true)
             .expect("upsert should succeed");
 
         let snapshot = reducer
