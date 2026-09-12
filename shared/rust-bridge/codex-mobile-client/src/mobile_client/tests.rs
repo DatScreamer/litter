@@ -915,6 +915,12 @@ mod mobile_client_tests {
         let mut existing = ThreadSnapshot::from_info("srv", make_thread_info("thread-1"));
         existing.active_turn_id = Some("turn-1".to_string());
         existing.info.status = ThreadSummaryStatus::Active;
+        existing.items = vec![crate::conversation::make_error_item(
+            "paged-item".into(),
+            "kept".into(),
+            None,
+        )]
+        .into();
         existing.older_turns_cursor = Some("older".to_string());
         existing.initial_turns_loaded = true;
         reducer.upsert_thread_snapshot(existing);
@@ -966,6 +972,8 @@ mod mobile_client_tests {
         assert_eq!(snapshot.active_turn_id.as_deref(), Some("turn-1"));
         assert_eq!(snapshot.older_turns_cursor.as_deref(), Some("older"));
         assert!(snapshot.initial_turns_loaded);
+        assert_eq!(snapshot.items.len(), 1);
+        assert_eq!(snapshot.items[0].id, "paged-item");
         assert_eq!(snapshot.info.status, ThreadSummaryStatus::Active);
     }
 
