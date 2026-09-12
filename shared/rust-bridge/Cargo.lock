@@ -315,13 +315,14 @@ dependencies = [
 [[package]]
 name = "alleycat-bridge-core"
 version = "0.1.0"
-source = "git+https://github.com/DatScreamer/alleycat.git?rev=d503bfc6da65dd979ada72723f62f753663f460c#d503bfc6da65dd979ada72723f62f753663f460c"
+source = "git+https://github.com/makyinmars/alleycat.git?rev=5dd425f23bb321252ccfdedfae592c60c04f7366#5dd425f23bb321252ccfdedfae592c60c04f7366"
 dependencies = [
  "alleycat-codex-proto",
  "anyhow",
  "async-trait",
  "base64 0.22.1",
  "chrono",
+ "dashmap",
  "futures",
  "serde",
  "serde_json",
@@ -333,7 +334,7 @@ dependencies = [
 [[package]]
 name = "alleycat-claude-bridge"
 version = "0.1.0"
-source = "git+https://github.com/DatScreamer/alleycat.git?rev=d503bfc6da65dd979ada72723f62f753663f460c#d503bfc6da65dd979ada72723f62f753663f460c"
+source = "git+https://github.com/makyinmars/alleycat.git?rev=5dd425f23bb321252ccfdedfae592c60c04f7366#5dd425f23bb321252ccfdedfae592c60c04f7366"
 dependencies = [
  "alleycat-bridge-core",
  "alleycat-codex-proto",
@@ -343,10 +344,12 @@ dependencies = [
  "chrono",
  "dashmap",
  "directories",
+ "futures",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
+ "tokio-util",
  "tracing",
  "tracing-subscriber",
  "uuid",
@@ -355,16 +358,18 @@ dependencies = [
 [[package]]
 name = "alleycat-codex-proto"
 version = "0.1.0"
-source = "git+https://github.com/DatScreamer/alleycat.git?rev=d503bfc6da65dd979ada72723f62f753663f460c#d503bfc6da65dd979ada72723f62f753663f460c"
+source = "git+https://github.com/makyinmars/alleycat.git?rev=5dd425f23bb321252ccfdedfae592c60c04f7366#5dd425f23bb321252ccfdedfae592c60c04f7366"
 dependencies = [
+ "chrono",
  "serde",
  "serde_json",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "alleycat-opencode-bridge"
 version = "0.1.0"
-source = "git+https://github.com/DatScreamer/alleycat.git?rev=d503bfc6da65dd979ada72723f62f753663f460c#d503bfc6da65dd979ada72723f62f753663f460c"
+source = "git+https://github.com/makyinmars/alleycat.git?rev=5dd425f23bb321252ccfdedfae592c60c04f7366#5dd425f23bb321252ccfdedfae592c60c04f7366"
 dependencies = [
  "alleycat-bridge-core",
  "anyhow",
@@ -388,7 +393,7 @@ dependencies = [
 [[package]]
 name = "alleycat-pi-bridge"
 version = "0.1.0"
-source = "git+https://github.com/DatScreamer/alleycat.git?rev=d503bfc6da65dd979ada72723f62f753663f460c#d503bfc6da65dd979ada72723f62f753663f460c"
+source = "git+https://github.com/makyinmars/alleycat.git?rev=5dd425f23bb321252ccfdedfae592c60c04f7366#5dd425f23bb321252ccfdedfae592c60c04f7366"
 dependencies = [
  "alleycat-bridge-core",
  "alleycat-codex-proto",
@@ -403,9 +408,11 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
+ "tokio-util",
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "walkdir",
 ]
 
 [[package]]
