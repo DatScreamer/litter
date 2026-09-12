@@ -110,6 +110,7 @@ jobs:
       - name: Generate Material3 scheme roles
         run: |
           bash tools/scripts/generate-material-schemes.sh
+          node --import ./tools/scripts/register-esm.mjs --test tools/scripts/generate-material-schemes.test.mjs
 
       # The shared Rust crate is the only implementation of session, thread,
       # streaming, hydration, discovery and reconnect logic; both platforms are

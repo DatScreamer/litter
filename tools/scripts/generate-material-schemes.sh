@@ -8,9 +8,14 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 TOOLS_SCRIPTS="$REPO_ROOT/tools/scripts"
 
-if [[ ! -d "$TOOLS_SCRIPTS/node_modules/@material/material-color-utilities" ]]; then
+DEPS_STAMP="$TOOLS_SCRIPTS/node_modules/.material-schemes-lock"
+if [[ ! -f "$DEPS_STAMP" ]] || \
+   ! cmp -s "$TOOLS_SCRIPTS/package-lock.json" "$DEPS_STAMP" || \
+   [[ "$TOOLS_SCRIPTS/package.json" -nt "$DEPS_STAMP" ]] || \
+   [[ ! -d "$TOOLS_SCRIPTS/node_modules/@material/material-color-utilities" ]]; then
   echo "==> Installing material-color-utilities tool deps..."
-  npm install --prefix "$TOOLS_SCRIPTS" --no-audit --no-fund
+  npm ci --prefix "$TOOLS_SCRIPTS" --no-audit --no-fund
+  cp "$TOOLS_SCRIPTS/package-lock.json" "$DEPS_STAMP"
 fi
 
 node --import "$TOOLS_SCRIPTS/register-esm.mjs" \

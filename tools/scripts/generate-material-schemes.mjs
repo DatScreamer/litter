@@ -18,12 +18,12 @@
  *   apps/android/app/src/main/java/com/litter/android/ui/LitterMaterialSchemes.generated.kt
  *
  * Run from the repo root:
- *   node tools/scripts/generate-material-schemes.mjs
+ *   bash tools/scripts/generate-material-schemes.sh
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   DynamicScheme,
@@ -83,7 +83,7 @@ const ROLES = [
   "surfaceContainerHighest",
 ];
 
-function parseColor(hex, fallback) {
+export function parseColor(hex, fallback) {
   const s = String(hex ?? "").trim();
   if (/^#[0-9a-fA-F]{3}$/.test(s)) {
     // #RGB shorthand -> #RRGGBB
@@ -95,9 +95,8 @@ function parseColor(hex, fallback) {
   if (/^#[0-9a-fA-F]{6}$/.test(s)) {
     return parseInt(s.slice(1), 16) | 0xff000000;
   }
-  // VS Code themes occasionally carry #RRGGBBAA (alpha last). iOS drops the
-  // trailing alpha pair and renders the solid color; do the same here so
-  // Android matches iOS instead of reading 8-digit hex as #AARRGGBB.
+  // VS Code themes carry #RRGGBBAA (alpha last). App tokens use the solid
+  // RGB color, matching Android colorFromHex rather than #AARRGGBB.
   if (/^#[0-9a-fA-F]{8}$/.test(s)) {
     return parseInt(s.slice(1, 7), 16) | 0xff000000;
   }
@@ -145,8 +144,7 @@ function dimColor(argb, factor) {
 }
 
 /**
- * Mirror of LitterResolvedTheme.resolve() / iOS ResolvedTheme.init. Kept in
- * lockstep with those so the generated schemes always match what iOS renders.
+ * Resolve Android app tokens using the same rules as LitterResolvedTheme.
  */
 function resolveTheme(def) {
   const c = def.colors ?? {};
@@ -266,7 +264,7 @@ function buildScheme(tokens) {
   });
 }
 
-function schemeFor(manifestEntry, def) {
+export function schemeFor(manifestEntry, def) {
   const tokens = resolveTheme(def);
   const scheme = buildScheme(tokens);
   const roles = {};
@@ -275,7 +273,7 @@ function schemeFor(manifestEntry, def) {
   }
 
   // Override roles that map 1:1 onto the resolved Litter tokens so the
-  // resulting scheme keeps the exact colors iOS renders for these surfaces.
+  // resulting scheme keeps the Android app token colors for these surfaces.
   const direct = {
     background: tokens.background,
     surface: tokens.surface,
@@ -309,13 +307,8 @@ function main() {
 
   for (const entry of manifest) {
     const defPath = join(THEMES_DIR, `${entry.slug}.json`);
-    let def;
-    try {
-      def = JSON.parse(readFileSync(defPath, "utf8"));
-    } catch {
-      console.warn(`[material-schemes] missing theme file: ${entry.slug}.json`);
-      continue;
-    }
+    // A partial table would silently reintroduce baseline Material colors.
+    const def = JSON.parse(readFileSync(defPath, "utf8"));
     entries.push(schemeFor(entry, def));
   }
 
@@ -357,4 +350,6 @@ function main() {
   );
 }
 
-main();
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
+  main();
+}
